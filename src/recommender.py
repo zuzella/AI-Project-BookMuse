@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Dict, Any
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -11,44 +11,53 @@ from sklearn.metrics.pairwise import cosine_similarity
 class BookRecommender:
     df: pd.DataFrame
     vectorizer: TfidfVectorizer
-    tfidf_matrix: Any  # sparse matrix
+    tfidf_matrix: Any
 
     @classmethod
     def build(cls, df: pd.DataFrame) -> "BookRecommender":
-        vectorizer = TfidfVectorizer(
-            stop_words="english",
-            max_features=50000,
-            ngram_range=(1, 2),
-            min_df=2,
-        )
+        vectorizer = TfidfVectorizer(stop_words="english", ngram_range=(1, 2), min_df=2, max_features=50000)
         tfidf_matrix = vectorizer.fit_transform(df["combined_text"])
         return cls(df=df, vectorizer=vectorizer, tfidf_matrix=tfidf_matrix)
 
-    def recommend_by_title(self, title_query: str, top_n: int = 5) -> List[Dict[str, Any]]:
-        title_query = (title_query or "").strip().lower()
-        if not title_query:
-            return []
+    def _find_title_index(self, title_query: str) -> Optional[int]:
+        q = (title_query or "").strip().lower()
+        if not q:
+            return None
 
         titles = self.df["display_title"].fillna("").astype(str)
         titles_low = titles.str.lower()
 
-        exact = self.df[titles_low == title_query]
+        exact = self.df[titles_low == q]
         if len(exact) > 0:
-            idx = exact.index[0]
-        else:
-            contains = self.df[titles_low.str.contains(title_query, na=False)]
-            if len(contains) == 0:
-                return []
-            idx = contains.index[0]
+            return int(exact.index[0])
 
-        sims = cosine_similarity(self.tfidf_matrix[idx], self.tfidf_matrix).flatten()
-        sims[idx] = -1  # exclude the same book
+        contains = self.df[titles_low.str.contains(q, na=False)]
+        if len(contains) == 0:
+            return None
+        return int(contains.index[0])
 
-        best_idx = np.argsort(sims)[::-1][: int(top_n)]
+    def _rank(self, query_vec, top_n: int, exclude_idx: Optional[int] = None) -> List[Dict[str, Any]]:
+        sims = cosine_similarity(query_vec, self.tfidf_matrix).flatten()
+        if exclude_idx is not None:
+            sims[exclude_idx] = -1
+        best = np.argsort(sims)[::-1][: int(top_n)]
 
-        results = []
-        for i in best_idx:
+        out: List[Dict[str, Any]] = []
+        for i in best:
             row = self.df.iloc[i].to_dict()
             row["similarity"] = float(sims[i])
-            results.append(row)
-        return results
+            out.append(row)
+        return out
+
+    def recommend_by_title(self, title_query: str, top_n: int = 6) -> List[Dict[str, Any]]:
+        idx = self._find_title_index(title_query)
+        if idx is None:
+            return []
+        return self._rank(self.tfidf_matrix[idx], top_n=top_n, exclude_idx=idx)
+
+    def recommend_by_text(self, free_text: str, top_n: int = 6) -> List[Dict[str, Any]]:
+        text = (free_text or "").strip()
+        if not text:
+            return []
+        qv = self.vectorizer.transform([text])
+        return self._rank(qv, top_n=top_n)
