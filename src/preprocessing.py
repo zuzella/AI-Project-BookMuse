@@ -1,61 +1,41 @@
-from dataclasses import dataclass
-from typing import List, Dict, Any
-
-import numpy as np
+import re
 import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+
+TEXT_COLS_CANDIDATES = ["title", "authors", "categories", "description"]
 
 
-@dataclass
-class BookRecommender:
-    df: pd.DataFrame
-    vectorizer: TfidfVectorizer
-    tfidf_matrix: Any  # sparse matrix
+def clean_text(x: str) -> str:
+    """Basic cleaning: lowercase, remove HTML, keep letters/numbers, normalize spaces."""
+    if pd.isna(x):
+        return ""
+    x = str(x).lower()
+    x = re.sub(r"<[^>]+>", " ", x)          # remove html tags
+    x = re.sub(r"[^a-z0-9\s]+", " ", x)     # keep letters/numbers/spaces
+    x = re.sub(r"\s+", " ", x).strip()
+    return x
 
-    @classmethod
-    def build(cls, df: pd.DataFrame) -> "BookRecommender":
-        vectorizer = TfidfVectorizer(
-            stop_words="english",   # ok even if descriptions are English-heavy
-            max_features=50000,
-            ngram_range=(1, 2),
-            min_df=2
-        )
-        tfidf_matrix = vectorizer.fit_transform(df["combined_text"])
-        return cls(df=df, vectorizer=vectorizer, tfidf_matrix=tfidf_matrix)
 
-    def recommend_by_title(self, title_query: str, top_n: int = 5) -> List[Dict[str, Any]]:
-        """
-        Find the closest title match in the dataset, then return top-N similar books.
-        """
-        title_query = (title_query or "").strip().lower()
-        if not title_query:
-            return []
+def load_books(csv_path: str) -> pd.DataFrame:
+    df = pd.read_csv(csv_path)
 
-        # Find best title match (simple contains match)
-        titles = self.df["display_title"].fillna("").astype(str)
-        titles_low = titles.str.lower()
+    # Ensure expected columns exist
+    for col in TEXT_COLS_CANDIDATES:
+        if col not in df.columns:
+            df[col] = ""
 
-        # Exact match first
-        exact = self.df[titles_low == title_query]
-        if len(exact) > 0:
-            idx = exact.index[0]
-        else:
-            # Contains match fallback
-            contains = self.df[titles_low.str.contains(title_query, na=False)]
-            if len(contains) == 0:
-                return []
-            idx = contains.index[0]
+    # Clean text columns
+    for col in TEXT_COLS_CANDIDATES:
+        df[col] = df[col].apply(clean_text)
 
-        sims = cosine_similarity(self.tfidf_matrix[idx], self.tfidf_matrix).flatten()
-        # Exclude the same book
-        sims[idx] = -1
+    # Combine into one text field used for vectorization
+    df["combined_text"] = (
+        df["title"] + " " + df["authors"] + " " + df["categories"] + " " + df["description"]
+    ).str.strip()
 
-        best_idx = np.argsort(sims)[::-1][:top_n]
+    # For display and title matching
+    df["display_title"] = df["title"].fillna("").astype(str)
 
-        results = []
-        for i in best_idx:
-            row = self.df.iloc[i].to_dict()
-            row["similarity"] = float(sims[i])
-            results.append(row)
-        return results
+    # Drop rows with no usable text
+    df = df[df["combined_text"].str.len() > 0].reset_index(drop=True)
+
+    return df
