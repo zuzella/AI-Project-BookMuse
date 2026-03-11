@@ -127,3 +127,45 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 python app.py
+
+## 7. Example Usage
+
+After launching the application, a local web interface will open in the browser.
+
+Users can interact with the system in three ways:
+
+1. **Find similar books**  
+   Select a book title and the system will recommend similar books.
+
+2. **Explore by topic**  
+   Enter a description such as *"books about philosophy and ethics"* and the system will recommend relevant books.
+
+3. **My Library**  
+   Select multiple books you like and the system will generate recommendations based on their combined profile.
+
+The recommendations are displayed with:
+- book title
+- authors
+- categories
+- rating
+- similarity score
+- short description
+
+## 8. Limitations
+
+This project uses a content-based recommendation approach, which has some limitations:
+
+- It relies only on book metadata and textual descriptions.
+- It does not use user behavior or collaborative filtering.
+- TF-IDF captures word frequency but not deeper semantic meaning.
+- Recommendations may be limited if book descriptions are very short or incomplete.
+
+## 9. Future Improvements
+
+Possible future extensions of the system include:
+
+- Category-based browsing (searching books by genre)
+- Using modern text embeddings such as Sentence-BERT
+- Building a hybrid recommendation system (content + collaborative filtering)
+- Adding user accounts and personalized recommendations
+- Deploying the system as an online web application
