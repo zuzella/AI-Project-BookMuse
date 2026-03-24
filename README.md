@@ -1,26 +1,36 @@
-# 📚 Book Recommender System  
+# 📚 BookMuse – Book Recommender System  
 **NLP Project – EADA**
 
 ---
 
-## 1. Project Motivation
+## 1. Project Overview
 
-The goal of this project is to build a content-based book recommender system using Natural Language Processing (NLP) techniques.
+BookMuse is a content-based book recommendation system built using Natural Language Processing (NLP) techniques.
 
-The system recommends books based on textual similarity, using information such as:
+The system allows users to discover books in two main ways:
+- interacting with an AI assistant
+- using an agent with multiple tools
 
-- Title  
-- Authors  
-- Categories  
-- Description  
-
-The objective is not only to build a working application, but to understand and explain the full NLP pipeline behind the recommendations.
+The goal of this project was not only to build a working recommender, but to design a complete pipeline from raw text data to an interactive application.
 
 ---
 
-## 2. Dataset Description
+## 2. What Makes This Project Different
 
-We use a CSV dataset containing book metadata, including:
+Compared to standard TF-IDF recommender systems, we extended our project with:
+
+- 🎯 Interactive web interface (Gradio)
+- 🤖 AI-powered “Ask AI” feature (RAG-based approach)
+- ⚙️ Agent system with multiple tools
+- 🔍 Multiple ways to interact with the same model
+
+This makes the system closer to a real product rather than a simple model.
+
+---
+
+## 3. Dataset Description
+
+We use a dataset of book metadata (`books.csv`) including:
 
 - `title`
 - `authors`
@@ -30,149 +40,145 @@ We use a CSV dataset containing book metadata, including:
 - `ratings_count`
 - `thumbnail`
 
-For our recommendation logic, we focus mainly on textual fields:
+For recommendations, we focus on textual features:
 
-- Title  
-- Authors  
-- Categories  
-- Description  
+- title  
+- authors  
+- categories  
+- description  
 
-These fields are combined into a single text representation per book.
-
----
-
-## 3. Methodology
-
-### 3.1 Preprocessing
-
-The preprocessing pipeline includes:
-
-1. Loading the dataset
-2. Handling missing values
-3. Combining textual fields into a single column (`full_text`)
-4. Converting text to lowercase
-5. Preparing text for vectorization
-
-Each book is therefore represented as a unified textual description.
+These are combined into a single field (`combined_text`).
 
 ---
 
-### 3.2 Text Representation – TF-IDF
+## 4. Methodology
 
-We use **TF-IDF (Term Frequency–Inverse Document Frequency)** to convert text into numerical vectors.
+### 4.1 Preprocessing
 
-TF-IDF assigns higher weights to words that are:
-
-- Frequent in a specific book  
-- Rare across the entire dataset  
-
-This helps highlight meaningful and distinctive words.
-
-Each book becomes a numerical vector in a high-dimensional space.
+We:
+1. Load the dataset  
+2. Handle missing values  
+3. Combine text fields into one column  
+4. Convert text to lowercase  
+5. Prepare it for vectorization  
 
 ---
 
-### 3.3 Similarity Computation – Cosine Similarity
+### 4.2 TF-IDF Vectorization
 
-To measure similarity between books, we use **cosine similarity**.
+We use:
 
-Cosine similarity measures the angle between two vectors:
+- `TfidfVectorizer`
+- n-grams (1,2)
+- max_features = 50,000
 
-- Value close to 1 → very similar
-- Value close to 0 → unrelated
-
-When a user selects a book (or enters a topic), we:
-
-1. Retrieve its vector
-2. Compare it with all other book vectors
-3. Rank them by similarity
-4. Return the Top-K results
+This converts each book into a numerical vector based on word importance.
 
 ---
 
-## 4. Recommendation Modes
+### 4.3 Similarity – Cosine Similarity
 
-### 1️⃣ Recommend by Title  
-The user selects a book title.  
-The system finds books with similar textual content.
+We compute similarity between books using cosine similarity:
 
-### 2️⃣ Recommend by Topic  
-The user enters free text (e.g., "books about stoicism and habits").  
-The system converts the query into a TF-IDF vector and compares it with book vectors.
+- 1 → very similar  
+- 0 → not related  
 
-### 3️⃣ My Library  
-The user selects multiple books they like.  
-We average their TF-IDF vectors to create a simple user profile and recommend similar books.
+Then we return Top-K most similar books.
 
 ---
 
-## 5. System Architecture
+## 5. Features
 
-User → Gradio Interface → BookRecommender → TF-IDF Vectors → Cosine Similarity → Ranked Results → UI Display
+The system offers two main interaction modes:
 
-The system is modular:
+### 🤖 1. Ask AI (RAG-based)
 
-- `src/preprocessing.py` → data cleaning and preparation  
+Users can ask questions in natural language.
+
+The system:
+1. Retrieves relevant books from the dataset  
+2. Sends them to GPT  
+3. Generates an answer based only on retrieved data  
+
+---
+
+### ⚙️ 2. Agent Mode
+
+The agent allows users to perform different tasks using one interface.
+
+Available actions:
+
+- Filter by genre, rating, and year  
+- Search by mood or theme  
+- Find books similar to a selected title  
+- Look up a specific book  
+
+The agent selects the correct logic based on user choice.
+
+---
+
+## 6. System Architecture
+
+User → Gradio UI  
+↓  
+BookRecommender (TF-IDF)  
+↓  
+Cosine Similarity  
+↓  
+Ranked Results  
+
++ AI Layer (RAG):  
+User Query → Retrieve Books → GPT → Answer  
+
+Modules:
+
+- `src/preprocessing.py` → data preparation  
 - `src/recommender.py` → recommendation logic  
-- `app.py` → Gradio user interface  
+- `app.py` → UI + interaction  
 
 ---
 
-## 6. Example Usage
+## 7. Demo
 
-After launching the application, a local web interface will open in the browser.
+### Ask AI Interface  
+![Ask AI](demo_screenshots/ask-ai-interface.png)
 
-Users can interact with the system in three ways:
+### Agent – Filter Mode  
+![Filter](demo_screenshots/agent-filter-mode.png)
 
-1. **Find similar books**  
-   Select a book title and the system will recommend similar books.
+### Agent – Theme Search  
+![Theme](demo_screenshots/agent-theme-search.png)
 
-2. **Explore by topic**  
-   Enter a description such as *"books about philosophy and ethics"* and the system will recommend relevant books.
+### Agent – Similar Books  
+![Similar](demo_screenshots/agent-similar-books.png)
 
-3. **My Library**  
-   Select multiple books you like and the system will generate recommendations based on their combined profile.
-
-The recommendations are displayed with:
-- book title
-- authors
-- categories
-- rating
-- similarity score
-- short description
+### Agent – Book Lookup  
+![Lookup](demo_screenshots/agent-book-lookup.png)
 
 ---
 
-## 7. Limitations
+## 8. Limitations
 
-This project uses a content-based recommendation approach, which has some limitations:
-
-- It relies only on book metadata and textual descriptions.
-- It does not use user behavior or collaborative filtering.
-- TF-IDF captures word frequency but not deeper semantic meaning.
-- Recommendations may be limited if book descriptions are very short or incomplete.
+- Uses TF-IDF → limited semantic understanding  
+- No collaborative filtering (no user behavior)  
+- Depends on quality of book descriptions  
+- AI answers depend on retrieved data  
 
 ---
 
-## 8. Future Improvements
+## 9. Future Improvements
 
-Possible future extensions of the system include:
-
-- Category-based browsing (searching books by genre)
-- Using modern text embeddings such as Sentence-BERT
-- Building a hybrid recommendation system (content + collaborative filtering)
-- Adding user accounts and personalized recommendations
-- Deploying the system as an online web application
+- Use embeddings (Sentence-BERT) for better semantic understanding  
+- Build a hybrid recommender system (content + collaborative filtering)  
+- Deploy as a scalable web application  
 
 ---
 
-## 9. How to Run the Project
-
-Clone the repository and run:
+## 10. How to Run the Project
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 python app.py
-
+```
